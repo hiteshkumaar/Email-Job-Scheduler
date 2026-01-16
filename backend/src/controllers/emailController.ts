@@ -19,6 +19,9 @@ export const scheduleEmails = async (req: Request, res: Response) => {
         let recipients: string[] = [];
 
         // 1. Handle File Upload (CSV)
+        console.log('Request File:', (req as any).file);
+        console.log('Request Body:', req.body);
+
         if ((req as any).file) {
             const results: any[] = [];
             await new Promise((resolve, reject) => {
@@ -29,8 +32,16 @@ export const scheduleEmails = async (req: Request, res: Response) => {
                     .on('error', reject);
             });
 
-            // Assume CSV has 'email' column
-            recipients = results.map((r: any) => r.email).filter(Boolean);
+            console.log('CSV Results:', results);
+
+            // Assume CSV has 'email' column (case-insensitive check)
+            recipients = results.map((r: any) => {
+                // Find key that matches 'email' case-insensitively
+                const key = Object.keys(r).find(k => k.toLowerCase() === 'email');
+                return key ? r[key] : null;
+            }).filter(Boolean);
+
+            console.log('Extracted Recipients:', recipients);
 
             // Cleanup file
             fs.unlinkSync((req as any).file.path);
@@ -39,7 +50,8 @@ export const scheduleEmails = async (req: Request, res: Response) => {
         }
 
         if (!recipients.length) {
-            return res.status(400).json({ error: 'No recipients found' });
+            console.error('No recipients found after parsing');
+            return res.status(400).json({ error: 'No recipients found. Please upload a CSV with an "email" column.' });
         }
 
         // 2. Schedule Jobs
